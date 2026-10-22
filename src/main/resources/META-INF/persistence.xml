@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_1.xsd"
+             version="3.1">
+
+    <persistence-unit name="collaborateurs-pu" transaction-type="RESOURCE_LOCAL">
+        <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+
+        <!-- Les entités sont listées explicitement : pas de magie, tout est visible -->
+        <class>fr.efrei.collaborateurs.modele.Collaborateur</class>
+        <class>fr.efrei.collaborateurs.modele.Programmeur</class>
+        <class>fr.efrei.collaborateurs.modele.Testeur</class>
+        <class>fr.efrei.collaborateurs.modele.Adresse</class>
+        <exclude-unlisted-classes>true</exclude-unlisted-classes>
+
+        <properties>
+            <!-- Connexion XAMPP (MariaDB) : root / mot de passe vide. MySQL : jdbc:mysql://... -->
+            <property name="jakarta.persistence.jdbc.url"
+                      value="jdbc:mariadb://localhost:3306/efrei_tp4"/>
+            <property name="jakarta.persistence.jdbc.user" value="root"/>
+            <property name="jakarta.persistence.jdbc.password" value=""/>
+
+            <!-- update : Hibernate crée/complète les tables (pratique en TP).
+                 En conditions réelles on préfère "validate" + script SQL. -->
+            <property name="hibernate.hbm2ddl.auto" value="update"/>
+
+            <!-- Voir le SQL généré : pour comprendre ce que fait JPA -->
+<!--            <property name="hibernate.show_sql" value="true"/>-->
+<!--            <property name="hibernate.format_sql" value="true"/>-->
+        </properties>
+    </persistence-unit>
+</persistence>
