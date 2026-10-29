@@ -16,4 +16,9 @@ public class Testeur extends Collaborateur {
 
     @Override
     public String getMetier() { return "Testeur"; }
+
+    @Override
+    public boolean peutEtreResponsableDeTickets() {
+        return false;
+    }
 }

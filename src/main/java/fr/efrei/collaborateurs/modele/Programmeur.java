@@ -25,4 +25,9 @@ public class Programmeur extends Collaborateur {
 
     @Override
     public String getMetier() { return "Programmeur"; }
+
+    @Override
+    public boolean peutEtreResponsableDeTickets() {
+        return true;
+    }
 }

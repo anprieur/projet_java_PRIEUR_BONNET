@@ -6,7 +6,7 @@ public class CollaborateurDejaExistantException extends RuntimeException {
     private final String identifiant;
 
     public CollaborateurDejaExistantException(String identifiant) {
-        super("Un collaborateur de identifiant " + identifiant + " existe déjà");
+        super("Un collaborateur d'identifiant " + identifiant + " existe déjà");
         this.identifiant = identifiant;
     }
 

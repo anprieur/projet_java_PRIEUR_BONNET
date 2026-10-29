@@ -6,7 +6,7 @@ public class CollaborateurIntrouvableException extends RuntimeException {
     private final String identifiant;
 
     public CollaborateurIntrouvableException(String identifiant) {
-        super("Aucun collaborateur de identifiant " + identifiant);
+        super("Aucun collaborateur d'identifiant " + identifiant);
         this.identifiant = identifiant;
     }
 

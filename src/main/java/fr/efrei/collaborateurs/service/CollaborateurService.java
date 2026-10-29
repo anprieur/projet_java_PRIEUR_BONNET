@@ -6,7 +6,6 @@ import fr.efrei.collaborateurs.modele.Collaborateur;
 import fr.efrei.collaborateurs.modele.Programmeur;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
-import jakarta.persistence.EntityTransaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +30,7 @@ public class CollaborateurService {
 
     // ---------- Écritures (dans une transaction) ----------
 
-    public void ajouter(Collaborateur collaborateur) {
+    public void ajouterCollaborateur(Collaborateur collaborateur) {
         dansUneTransaction(em -> {
             // find cherche par clé primaire : null = identifiant libre
             if (em.find(Collaborateur.class, collaborateur.getIdentifiant()) != null) {
@@ -100,22 +99,7 @@ public class CollaborateurService {
 
     // ---------- Outils internes ----------
 
-    /** begin / commit / rollback écrits une seule fois (Challenge A). */
     private <T> T dansUneTransaction(Function<EntityManager, T> travail) {
-        try (EntityManager em = eMFactory.createEntityManager()) {
-            EntityTransaction transaction = em.getTransaction();
-            transaction.begin();
-            try {
-                T resultat = travail.apply(em);
-                transaction.commit();
-                return resultat;
-            } catch (RuntimeException e) {
-                if (transaction.isActive()) {
-                    transaction.rollback();
-                    logger.debug("Transaction annulée (rollback) : {}", e.toString());
-                }
-                throw e; // on ne l'avale pas : l'appelant décide quoi dire à l'utilisateur
-            }
-        }
+        return Transactions.executer(eMFactory, travail);
     }
 }

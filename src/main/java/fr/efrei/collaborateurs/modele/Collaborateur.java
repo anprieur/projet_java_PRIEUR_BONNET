@@ -65,6 +65,7 @@ public abstract class Collaborateur {
     }
 
     public abstract String getMetier();
+    public abstract boolean peutEtreResponsableDeTickets();
 
     public String getIdentifiant() { return identifiant; }
     public String getPrenom() { return prenom; }

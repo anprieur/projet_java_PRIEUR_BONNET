@@ -1,12 +1,12 @@
 package fr.efrei.collaborateurs.ui;
 
+import fr.efrei.collaborateurs.exception.AssignationRefuseeException;
 import fr.efrei.collaborateurs.exception.CollaborateurDejaExistantException;
 import fr.efrei.collaborateurs.exception.CollaborateurIntrouvableException;
-import fr.efrei.collaborateurs.modele.Adresse;
-import fr.efrei.collaborateurs.modele.Collaborateur;
-import fr.efrei.collaborateurs.modele.Programmeur;
-import fr.efrei.collaborateurs.modele.Testeur;
+import fr.efrei.collaborateurs.exception.TicketIntrouvableException;
+import fr.efrei.collaborateurs.modele.*;
 import fr.efrei.collaborateurs.service.CollaborateurService;
+import fr.efrei.collaborateurs.service.TicketService;
 import jakarta.persistence.PersistenceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +22,13 @@ public class ConsoleApp {
 
     private static final Logger logger = LoggerFactory.getLogger(ConsoleApp.class);
 
-    private final CollaborateurService service;
+    private final CollaborateurService serviceCollaborateur;
+    private final TicketService serviceTicket;
     private final Scanner scanner = new Scanner(System.in);
 
-    public ConsoleApp(CollaborateurService service) {
-        this.service = service;
+    public ConsoleApp(CollaborateurService serviceCollaborateur, TicketService serviceTicket) {
+        this.serviceCollaborateur = serviceCollaborateur;
+        this.serviceTicket = serviceTicket;
     }
 
     public void lancer() {
@@ -42,13 +44,21 @@ public class ConsoleApp {
                     case "4" -> rechercherParNom();
                     case "5" -> augmenter();
                     case "6" -> listerParLangage();
+                    case "7" -> creerTicket();
+                    case "8" -> consulterTickets();
+                    case "9" -> assignerTicket();
+                    case "10" -> ticketsDUnCollaborateur();
                     case "0" -> continuer = false;
                     default -> System.out.println("Choix inconnu.");
                 }
             } catch (CollaborateurDejaExistantException e) {
-                System.out.println("Ce identifiant est déjà pris (" + e.identifiant() + "). Choisissez-en un autre.");
+                System.out.println("Cet identifiant est déjà pris (" + e.identifiant() + "). Choisissez-en un autre.");
             } catch (CollaborateurIntrouvableException e) {
-                System.out.println("Aucun collaborateur n'a le identifiant " + e.identifiant() + ".");
+                System.out.println("Aucun collaborateur n'a l'identifiant " + e.identifiant() + ".");
+            } catch (TicketIntrouvableException e) {
+                System.out.println("Aucun ticket n'a le numéro " + e.id() + ".");
+            } catch (AssignationRefuseeException e) {
+                System.out.println("Assignation refusée : " + e.getMessage());
             } catch (SaisieInvalideException | IllegalArgumentException e) {
                 System.out.println("Saisie refusée : " + e.getMessage());
             } catch (PersistenceException e) {
@@ -72,13 +82,15 @@ public class ConsoleApp {
         System.out.print("Votre choix : ");
     }
 
+    // ---- Collaborateur ----
+
     private void ajouterProgrammeur() {
         String identifiant = lireTexte("Identifiant");
         String prenom = lireTexte("Prénom");
         String nom = lireTexte("Nom");
         double salaire = lireDecimal("Salaire");
         String langage = lireTexte("Langage préféré");
-        service.ajouter(new Programmeur(identifiant, prenom, nom, salaire, lireAdresse(), langage));
+        serviceCollaborateur.ajouterCollaborateur(new Programmeur(identifiant, prenom, nom, salaire, lireAdresse(), langage));
         System.out.println("Programmeur enregistré.");
     }
 
@@ -87,34 +99,59 @@ public class ConsoleApp {
         String prenom = lireTexte("Prénom");
         String nom = lireTexte("Nom");
         double salaire = lireDecimal("Salaire");
-        service.ajouter(new Testeur(identifiant, prenom, nom, salaire, lireAdresse()));
+        serviceCollaborateur.ajouterCollaborateur(new Testeur(identifiant, prenom, nom, salaire, lireAdresse()));
         System.out.println("Testeur enregistré.");
     }
 
     private void listerSalaireSuperieur() {
-        afficher(service.salaireSuperieurA(lireDecimal("Seuil")));
+        afficher(serviceCollaborateur.salaireSuperieurA(lireDecimal("Seuil")));
     }
 
     private void rechercherParNom() {
-        afficher(service.rechercherParNom(lireTexte("Fragment du nom")));
+        afficher(serviceCollaborateur.rechercherParNom(lireTexte("Fragment du nom")));
     }
 
     private void augmenter() {
         String identifiant = lireTexte("Identifiant");
         double pourcentage = lireDecimal("Pourcentage d'augmentation (10 = +10 %)");
-        double nouveau = service.augmenterSalaire(identifiant, pourcentage);
+        double nouveau = serviceCollaborateur.augmenterSalaire(identifiant, pourcentage);
         System.out.printf("Nouveau salaire : %.2f EUR%n", nouveau);
     }
 
     private void listerParLangage() {
-        afficher(service.programmeursParLangage(lireTexte("Langage")));
+        afficher(serviceCollaborateur.programmeursParLangage(lireTexte("Langage")));
     }
+
+    // ---- Ticket ----
+
+    private void creerTicket() {
+        String titre = lireTexte("Titre");
+        Priorite priorite = lirePriorite();
+        System.out.println("Ticket créé : " + serviceTicket.creerTicket(titre, priorite));
+    }
+
+    private void consulterTickets() {
+        Statut statut = lireStatutOuTous();
+        afficher(statut == null ? serviceTicket.listerTousLesTicket() : serviceTicket.listerTicketParStatut(statut));
+    }
+
+    private void assignerTicket() {
+        long numero = lireEntier("Numéro du ticket");
+        String identifiant = lireTexte("Identifiant du programmeur");
+        System.out.println("Ticket assigné : " + serviceTicket.assignerTicket(numero, identifiant));
+    }
+
+    private void ticketsDUnCollaborateur() {
+        afficher(serviceTicket.ticketsDeCollaborateur(lireTexte("Identifiant du collaborateur")));
+    }
+
+    // ---- Affichage ----
 
     private Adresse lireAdresse() {
         return new Adresse(lireTexte("Rue"), lireTexte("Code postal"), lireTexte("Ville"), lireTexte("Pays"));
     }
 
-    private void afficher(List<? extends Collaborateur> liste) {
+    private void afficher(List<?> liste) {
         if (liste.isEmpty()) {
             System.out.println("Aucun résultat.");
         }
@@ -138,6 +175,37 @@ public class ConsoleApp {
             return Double.parseDouble(texte.replace(',', '.'));
         } catch (NumberFormatException e) {
             throw new SaisieInvalideException("\"" + texte + "\" n'est pas un nombre");
+        }
+    }
+
+    private long lireEntier(String libelle) {
+        String texte = lireTexte(libelle);
+        try {
+            return Long.parseLong(texte);
+        } catch (NumberFormatException e) {
+            throw new SaisieInvalideException("\"" + texte + "\" n'est pas un nombre entier");
+        }
+    }
+
+    private Priorite lirePriorite() {
+        String texte = lireTexte("Priorité (BASSE, NORMALE, HAUTE)").toUpperCase();
+        try {
+            return Priorite.valueOf(texte);
+        } catch (IllegalArgumentException e) {
+            throw new SaisieInvalideException("priorité inconnue : " + texte);
+        }
+    }
+
+    private Statut lireStatutOuTous() {
+        System.out.print("Statut (A_FAIRE, EN_COURS, A_VALIDER, TERMINE) ou vide pour tous : ");
+        String texte = scanner.nextLine().trim().toUpperCase();
+        if (texte.isEmpty() || texte.equals("TOUS")) {
+            return null;
+        }
+        try {
+            return Statut.valueOf(texte);
+        } catch (IllegalArgumentException e) {
+            throw new SaisieInvalideException("statut inconnu : " + texte);
         }
     }
 
