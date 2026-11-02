@@ -33,13 +33,13 @@ public class Ticket {
     }
 
     public Ticket(String titre, Priorite priorite) {
-        this.titre = titre;
-        this.priorite = priorite;
+        this.setTitre(titre);
+        this.setPriorite(priorite);
         this.statut=Statut.A_FAIRE;
     }
 
     public void demarrerTicket() {
-        if (assigne == null || assigne.peutEtreResponsableDeTickets()) {
+        if (assigne == null || !assigne.peutEtreResponsableDeTickets()) {
             throw new TransitionRefuseeException("Le ticket doit être assigné à un programmeur pour qu'il soit démarré.");
         } else if (!this.statut.equals(Statut.A_FAIRE)) {
             throw new TransitionRefuseeException("Le ticket doit être au statut 'A FAIRE' pour qu'il soit démarré.");
@@ -67,7 +67,7 @@ public class Ticket {
 
     public void terminerTicket(Testeur testeur) {
         if (!testeur.getMetier().equals("Testeur")) {
-            throw new TransitionRefuseeException("Le ticket ne peut être renvoyé que par un testeur.");
+            throw new TransitionRefuseeException("Le ticket ne peut être validé que par un testeur.");
         } else if (!this.statut.equals(Statut.A_VALIDER)) {
             throw new TransitionRefuseeException("Le ticket doit être au statut 'A VALIDER' pour qu'il soit mis au statut 'TERMINE'.");
         } else {

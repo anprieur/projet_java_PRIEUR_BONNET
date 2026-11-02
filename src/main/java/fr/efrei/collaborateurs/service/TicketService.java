@@ -1,9 +1,6 @@
 package fr.efrei.collaborateurs.service;
 
-import fr.efrei.collaborateurs.exception.AssignationRefuseeException;
-import fr.efrei.collaborateurs.exception.CollaborateurIntrouvableException;
-import fr.efrei.collaborateurs.exception.SuppressionTicketException;
-import fr.efrei.collaborateurs.exception.TicketIntrouvableException;
+import fr.efrei.collaborateurs.exception.*;
 import fr.efrei.collaborateurs.modele.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -65,7 +62,8 @@ public class TicketService {
                             "Le collaborateur ne peut pas avoir plus de 3 tickets en cours"
                     );
                 }
-            } else t.demarrerTicket();
+            }
+            t.demarrerTicket();
             return t;
         });
 
@@ -93,9 +91,14 @@ public class TicketService {
             if (t == null) {
                 throw new TicketIntrouvableException(ticketId);
             }
-            Testeur testeur = em.find(Testeur.class, testeurId);
-            if (testeur == null) {
+            Collaborateur c = em.find(Collaborateur.class, testeurId);
+            if (c == null) {
                 throw new CollaborateurIntrouvableException(testeurId);
+            }
+            if (!(c instanceof Testeur testeur))
+            {
+                throw new TransitionRefuseeException(testeurId + " est " + c.getMetier()
+                        + " : seul un Testeur peut valider ou renvoyer un ticket.");
             }
             t.renvoyerTicket(testeur);
             return t;
@@ -111,9 +114,14 @@ public class TicketService {
             if (t == null) {
                 throw new TicketIntrouvableException(ticketId);
             }
-            Testeur testeur = em.find(Testeur.class, testeurId);
-            if (testeur == null) {
+            Collaborateur c = em.find(Collaborateur.class, testeurId);
+            if (c == null) {
                 throw new CollaborateurIntrouvableException(testeurId);
+            }
+            if (!(c instanceof Testeur testeur))
+            {
+                throw new TransitionRefuseeException(testeurId + " est " + c.getMetier()
+                        + " : seul un Testeur peut valider ou renvoyer un ticket.");
             }
             t.terminerTicket(testeur);
             return t;
