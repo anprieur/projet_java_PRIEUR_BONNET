@@ -7,7 +7,11 @@ import jakarta.persistence.EntityManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class TicketService {
 
@@ -51,17 +55,7 @@ public class TicketService {
             }
 
             if (t.getStatut() == Statut.A_FAIRE && t.getAssigne() != null) {
-
-                long nombreTicketsEnCours = ticketsDeCollaborateur(t.getAssigne().getIdentifiant())
-                        .stream()
-                        .filter(tk -> tk.getStatut() == Statut.EN_COURS)
-                        .count();
-
-                if (nombreTicketsEnCours >= 3) {
-                    throw new AssignationRefuseeException(
-                            "Le collaborateur ne peut pas avoir plus de 3 tickets en cours"
-                    );
-                }
+                verifierMoinsDe3EnCours(em, t.getAssigne());
             }
             t.demarrerTicket();
             return t;
@@ -99,6 +93,9 @@ public class TicketService {
             {
                 throw new TransitionRefuseeException(testeurId + " est " + c.getMetier()
                         + " : seul un Testeur peut valider ou renvoyer un ticket.");
+            }
+            if (t.getStatut() == Statut.A_VALIDER && t.getAssigne() != null) {
+                verifierMoinsDe3EnCours(em, t.getAssigne());
             }
             t.renvoyerTicket(testeur);
             return t;
@@ -147,6 +144,42 @@ public class TicketService {
         return ticket;
     }
 
+    public Ticket modifierTitre(long ticketId, String nouveauTitre) {
+        Ticket ticket = Transactions.executer(emf, em -> {
+            Ticket t = em.find(Ticket.class, ticketId);
+            if (t == null) {
+                throw new TicketIntrouvableException(ticketId);
+            }
+            t.setTitre(nouveauTitre);
+            return t;
+        });
+        logger.info("Titre du ticket #{} modifié", ticketId);
+        return ticket;
+    }
+
+    public Ticket modifierPriorite(long ticketId, Priorite nouvellePriorite) {
+        Ticket ticket = Transactions.executer(emf, em -> {
+            Ticket t = em.find(Ticket.class, ticketId);
+            if (t == null) {
+                throw new TicketIntrouvableException(ticketId);
+            }
+            t.setPriorite(nouvellePriorite);
+            return t;
+        });
+        logger.info("Priorité du ticket #{} modifiée en {}", ticketId, nouvellePriorite);
+        return ticket;
+    }
+
+    public List<Ticket> ticketsARepartir() {
+        try (EntityManager em = emf.createEntityManager()) {
+            List<Ticket> tickets = em.createQuery("select t from Ticket t where t.assigne is null", Ticket.class)
+                    .getResultList();
+            tickets.sort(Comparator.comparing(Ticket::getPriorite).reversed()
+                    .thenComparing(Ticket::getId));
+            return tickets;
+        }
+    }
+
     public Ticket assignerTicket(long ticketId, String identifiant) {
         Ticket ticket = Transactions.executer(emf, em -> {
             Ticket t = em.find(Ticket.class, ticketId);
@@ -173,6 +206,83 @@ public class TicketService {
                             "select t from Ticket t where t.assigne.identifiant = :id order by t.id", Ticket.class)
                     .setParameter("id", identifiant)
                     .getResultList();
+        }
+    }
+
+    public Map<Statut, Long> nombreTicketsParStatut() {
+        try (EntityManager em = emf.createEntityManager()) {
+            Map<Statut, Long> resultat = new EnumMap<>(Statut.class);
+            for (Statut statut : Statut.values()) {
+                resultat.put(statut, 0L);
+            }
+            List<Object[]> lignes = em.createQuery(
+                            "select t.statut, count(t) from Ticket t group by t.statut", Object[].class)
+                    .getResultList();
+            for (Object[] ligne : lignes) {
+                resultat.put((Statut) ligne[0], (Long) ligne[1]);
+            }
+            return resultat;
+        }
+    }
+
+    public Map<Programmeur, Long> chargeDesProgrammeurs() {
+        try (EntityManager em = emf.createEntityManager()) {
+            Map<Programmeur, Long> resultat = new LinkedHashMap<>();
+            List<Programmeur> programmeurs = em.createQuery(
+                            "select p from Programmeur p order by p.identifiant", Programmeur.class)
+                    .getResultList();
+            for (Programmeur p : programmeurs) {
+                resultat.put(p, compterEnCours(em, p));
+            }
+            return resultat;
+        }
+    }
+
+    public List<Ticket> reassignerTicketsAFaire(String identifiantSource, String identifiantCible) {
+        if (identifiantSource.equals(identifiantCible)) {
+            throw new AssignationRefuseeException("Le programmeur source et le programmeur cible sont identiques.");
+        }
+        List<Ticket> tickets = Transactions.executer(emf, em -> {
+            Collaborateur source = em.find(Collaborateur.class, identifiantSource);
+            if (source == null) {
+                throw new CollaborateurIntrouvableException(identifiantSource);
+            }
+            Collaborateur cible = em.find(Collaborateur.class, identifiantCible);
+            if (cible == null) {
+                throw new CollaborateurIntrouvableException(identifiantCible);
+            }
+            if (!cible.peutEtreResponsableDeTickets()) {
+                throw new AssignationRefuseeException(identifiantCible + " est " + cible.getMetier()
+                        + " : seul un Programmeur peut reprendre des tickets.");
+            }
+            List<Ticket> aReassigner = em.createQuery(
+                            "select t from Ticket t where t.assigne = :source and t.statut = :statut order by t.id",
+                            Ticket.class)
+                    .setParameter("source", source)
+                    .setParameter("statut", Statut.A_FAIRE)
+                    .getResultList();
+            for (Ticket t : aReassigner) {
+                t.assigner(cible);
+            }
+            return aReassigner;
+        });
+        logger.info("{} ticket(s) réassigné(s) de {} à {}", tickets.size(), identifiantSource, identifiantCible);
+        return tickets;
+    }
+
+    private long compterEnCours(EntityManager em, Collaborateur programmeur) {
+        return em.createQuery(
+                        "select count(t) from Ticket t where t.assigne = :c and t.statut = :statut", Long.class)
+                .setParameter("c", programmeur)
+                .setParameter("statut", Statut.EN_COURS)
+                .getSingleResult();
+    }
+
+    private void verifierMoinsDe3EnCours(EntityManager em, Collaborateur programmeur) {
+        long enCours = compterEnCours(em, programmeur);
+        if (enCours >= 3) {
+            throw new TransitionRefuseeException(programmeur.getIdentifiant()
+                    + " a déjà " + enCours + " tickets « En cours » (maximum 3).");
         }
     }
 }

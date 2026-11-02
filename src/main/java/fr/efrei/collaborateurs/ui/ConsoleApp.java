@@ -3,7 +3,10 @@ package fr.efrei.collaborateurs.ui;
 import fr.efrei.collaborateurs.exception.AssignationRefuseeException;
 import fr.efrei.collaborateurs.exception.CollaborateurDejaExistantException;
 import fr.efrei.collaborateurs.exception.CollaborateurIntrouvableException;
+import fr.efrei.collaborateurs.exception.SuppressionTicketException;
+import fr.efrei.collaborateurs.exception.TermineStatutException;
 import fr.efrei.collaborateurs.exception.TicketIntrouvableException;
+import fr.efrei.collaborateurs.exception.TransitionRefuseeException;
 import fr.efrei.collaborateurs.modele.*;
 import fr.efrei.collaborateurs.service.CollaborateurService;
 import fr.efrei.collaborateurs.service.TicketService;
@@ -12,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 /**
@@ -48,6 +52,15 @@ public class ConsoleApp {
                     case "8" -> consulterTickets();
                     case "9" -> assignerTicket();
                     case "10" -> ticketsDUnCollaborateur();
+                    case "11" -> demarrerTicket();
+                    case "12" -> soumettreTicket();
+                    case "13" -> validerTicket();
+                    case "14" -> renvoyerTicket();
+                    case "15" -> modifierTicket();
+                    case "16" -> supprimerTicket();
+                    case "17" -> ticketsARepartir();
+                    case "18" -> tableauDeBord();
+                    case "19" -> reassignerTicketsAFaire();
                     case "0" -> continuer = false;
                     default -> System.out.println("Choix inconnu.");
                 }
@@ -59,12 +72,22 @@ public class ConsoleApp {
                 System.out.println("Aucun ticket n'a le numéro " + e.id() + ".");
             } catch (AssignationRefuseeException e) {
                 System.out.println("Assignation refusée : " + e.getMessage());
+            } catch (TransitionRefuseeException e) {
+                System.out.println("Opération refusée : " + e.getMessage());
+            } catch (TermineStatutException e) {
+                System.out.println("Modification refusée : " + e.getMessage());
+            } catch (SuppressionTicketException e) {
+                System.out.println("Suppression refusée : le ticket #" + e.identifiant()
+                        + " a déjà été commencé, seul un ticket « À faire » peut être supprimé.");
             } catch (SaisieInvalideException | IllegalArgumentException e) {
                 System.out.println("Saisie refusée : " + e.getMessage());
             } catch (PersistenceException e) {
                 // Problème technique : détail dans les logs, message sobre pour l'utilisateur
                 logger.error("Erreur d'accès à la base de données", e);
                 System.out.println("Un problème technique est survenu, l'opération n'a pas été enregistrée.");
+            } catch (RuntimeException e) {
+                logger.error("Erreur inattendue", e);
+                System.out.println("Erreur inattendue : " + e.getMessage());
             }
         }
         System.out.println("Au revoir !");
@@ -82,6 +105,15 @@ public class ConsoleApp {
         System.out.println("8. Consulter les tickets");
         System.out.println("9. Assigner un ticket");
         System.out.println("10. Tickets d'un collaborateur");
+        System.out.println("11. Démarrer un ticket");
+        System.out.println("12. Soumettre un ticket à validation");
+        System.out.println("13. Valider un ticket (testeur)");
+        System.out.println("14. Renvoyer un ticket en cours (testeur)");
+        System.out.println("15. Modifier le titre ou la priorité d'un ticket");
+        System.out.println("16. Supprimer un ticket");
+        System.out.println("17. Tickets à répartir");
+        System.out.println("18. Tableau de bord");
+        System.out.println("19. Réassigner les tickets « À faire » d'un programmeur");
         System.out.println("0. Quitter");
         System.out.print("Votre choix : ");
     }
@@ -147,6 +179,86 @@ public class ConsoleApp {
 
     private void ticketsDUnCollaborateur() {
         afficher(serviceTicket.ticketsDeCollaborateur(lireTexte("Identifiant du collaborateur")));
+    }
+
+    private void demarrerTicket() {
+        long numero = lireEntier("Numéro du ticket");
+        System.out.println("Ticket démarré : " + serviceTicket.demarrerTicket(numero));
+    }
+
+    private void soumettreTicket() {
+        long numero = lireEntier("Numéro du ticket");
+        System.out.println("Ticket soumis à validation : " + serviceTicket.aValiderTicket(numero));
+    }
+
+    private void validerTicket() {
+        long numero = lireEntier("Numéro du ticket");
+        String testeur = lireTexte("Identifiant du testeur");
+        System.out.println("Ticket validé : " + serviceTicket.terminerTicket(numero, testeur));
+    }
+
+    private void renvoyerTicket() {
+        long numero = lireEntier("Numéro du ticket");
+        String testeur = lireTexte("Identifiant du testeur");
+        System.out.println("Ticket renvoyé en cours : " + serviceTicket.renvoyerTicket(numero, testeur));
+    }
+
+    private void modifierTicket() {
+        long numero = lireEntier("Numéro du ticket");
+        String choix = lireTexte("Modifier (1) le titre ou (2) la priorité");
+        switch (choix) {
+            case "1" -> System.out.println("Ticket modifié : "
+                    + serviceTicket.modifierTitre(numero, lireTexte("Nouveau titre")));
+            case "2" -> System.out.println("Ticket modifié : "
+                    + serviceTicket.modifierPriorite(numero, lirePriorite()));
+            default -> throw new SaisieInvalideException("choix inconnu : " + choix);
+        }
+    }
+
+    private void supprimerTicket() {
+        long numero = lireEntier("Numéro du ticket");
+        serviceTicket.supprimerTicket(numero);
+        System.out.println("Ticket #" + numero + " supprimé.");
+    }
+
+    private void ticketsARepartir() {
+        List<Ticket> tickets = serviceTicket.ticketsARepartir();
+        if (tickets.isEmpty()) {
+            System.out.println("Tous les tickets sont assignés : rien à répartir.");
+            return;
+        }
+        System.out.println("Tickets à répartir (" + tickets.size() + ")");
+        for (Ticket t : tickets) {
+            System.out.printf("  #%-3d %-8s %s%n", t.getId(), t.getPriorite(), t.getTitre());
+        }
+    }
+
+    private void tableauDeBord() {
+        System.out.println("Tickets par statut");
+        for (Map.Entry<Statut, Long> e : serviceTicket.nombreTicketsParStatut().entrySet()) {
+            System.out.printf("  %-10s %d%n", e.getKey(), e.getValue());
+        }
+        System.out.println("Charge des programmeurs (tickets « En cours »)");
+        Map<Programmeur, Long> charge = serviceTicket.chargeDesProgrammeurs();
+        if (charge.isEmpty()) {
+            System.out.println("  Aucun programmeur.");
+        }
+        for (Map.Entry<Programmeur, Long> e : charge.entrySet()) {
+            Programmeur p = e.getKey();
+            System.out.printf("  %-5s %-20s %d/3%n", p.getIdentifiant(), p.getPrenom() + " " + p.getNom(), e.getValue());
+        }
+    }
+
+    private void reassignerTicketsAFaire() {
+        String source = lireTexte("Identifiant du programmeur qui quitte le projet");
+        String cible = lireTexte("Identifiant du programmeur qui reprend ses tickets");
+        List<Ticket> tickets = serviceTicket.reassignerTicketsAFaire(source, cible);
+        if (tickets.isEmpty()) {
+            System.out.println(source + " n'a aucun ticket « À faire » à réassigner.");
+        } else {
+            System.out.println(tickets.size() + " ticket(s) réassigné(s) à " + cible + " :");
+            afficher(tickets);
+        }
     }
 
     // ---- Affichage ----
