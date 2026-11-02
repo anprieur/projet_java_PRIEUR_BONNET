@@ -98,4 +98,10 @@ public class Ticket {
         this.priorite= priorite;
     }
 
+    @Override
+    public String toString() {
+        String responsable = assigne == null ? "aucun responsable" : assigne.getIdentifiant();
+        return String.format("#%d %s [%s] - %s - %s", id, titre, priorite, statut, responsable);
+    }
+
 }

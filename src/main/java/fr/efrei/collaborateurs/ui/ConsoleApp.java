@@ -78,6 +78,10 @@ public class ConsoleApp {
         System.out.println("4. Rechercher par nom");
         System.out.println("5. Augmenter un salaire");
         System.out.println("6. Programmeurs par langage");
+        System.out.println("7. Créer un ticket");
+        System.out.println("8. Consulter les tickets");
+        System.out.println("9. Assigner un ticket");
+        System.out.println("10. Tickets d'un collaborateur");
         System.out.println("0. Quitter");
         System.out.print("Votre choix : ");
     }
