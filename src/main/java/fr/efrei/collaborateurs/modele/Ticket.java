@@ -1,6 +1,8 @@
 package fr.efrei.collaborateurs.modele;
 
 import fr.efrei.collaborateurs.exception.AssignationRefuseeException;
+import fr.efrei.collaborateurs.exception.TermineStatutException;
+import fr.efrei.collaborateurs.exception.TransitionRefuseeException;
 import jakarta.persistence.*;
 
 @Entity
@@ -36,13 +38,40 @@ public class Ticket {
         this.statut=Statut.A_FAIRE;
     }
 
-    public void demarerTicket() throws Exception {
-        if (assigne == null) {
-            throw new Exception("Le ticket doit être assigné à un programmeur pour qu'il soit démarré.");
+    public void demarrerTicket() throws Exception {
+        if (assigne == null && assigne.peutEtreResponsableDeTickets()) {
+            throw new TransitionRefuseeException("Le ticket doit être assigné à un programmeur pour qu'il soit démarré.");
         } else if (!this.statut.equals(Statut.A_FAIRE)) {
-            throw new Exception("Le ticket doit être au statut 'A FAIRE' pour qu'il soit démarré.");
+            throw new TransitionRefuseeException("Le ticket doit être au statut 'A FAIRE' pour qu'il soit démarré.");
         } else {
             this.statut = Statut.EN_COURS;
+        }
+    }
+
+    public void aValiderTicket() throws Exception {
+        if (this.statut != Statut.EN_COURS) {
+            throw new TransitionRefuseeException("Le ticket doit être 'EN_COURS' pour qu'il puisse être soumis à une validation.");
+        }
+        this.statut = Statut.A_VALIDER;
+    }
+
+    public void renvoyerTicket(Testeur testeur) throws Exception {
+        if (!testeur.getMetier().equals("Testeur")) {
+            throw new TransitionRefuseeException("Le ticket ne peut être renvoyé que par un testeur.");
+        } else if (!this.statut.equals(Statut.A_VALIDER)) {
+            throw new TransitionRefuseeException("Le ticket doit être au statut 'A VALIDER' pour qu'il soit renvoyer au statut 'EN COURS'.");
+        } else {
+            this.statut = Statut.EN_COURS;
+        }
+    }
+
+    public void terminerTicket(Testeur testeur) throws Exception {
+        if (!testeur.getMetier().equals("Testeur")) {
+            throw new TransitionRefuseeException("Le ticket ne peut être renvoyé que par un testeur.");
+        } else if (!this.statut.equals(Statut.A_VALIDER)) {
+            throw new TransitionRefuseeException("Le ticket doit être au statut 'A VALIDER' pour qu'il soit mis au statut 'TERMINE'.");
+        } else {
+            this.statut = Statut.TERMINE;
         }
     }
 
@@ -87,6 +116,8 @@ public class Ticket {
     public void setTitre(String titre) {
         if (titre == null || titre.isBlank()) {
             throw new IllegalArgumentException("Le titre d'un ticket est obligatoire");
+        } else if (this.statut == Statut.TERMINE) {
+            throw new TermineStatutException("Le ticket est terminé il ne peut pas être modifié.");
         }
         this.titre=titre.trim();
     }
@@ -94,6 +125,8 @@ public class Ticket {
     public void setPriorite(Priorite priorite) {
         if (priorite == null) {
             throw new IllegalArgumentException("La priorité d'un ticket est obligatoire");
+        } else if (this.statut == Statut.TERMINE) {
+            throw new TermineStatutException("Le ticket est terminé il ne peut pas être modifié.");
         }
         this.priorite= priorite;
     }

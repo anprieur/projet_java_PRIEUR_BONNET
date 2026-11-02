@@ -13,8 +13,6 @@
         <class>fr.efrei.collaborateurs.modele.Testeur</class>
         <class>fr.efrei.collaborateurs.modele.Adresse</class>
         <class>fr.efrei.collaborateurs.modele.Ticket</class>
-        <class>fr.efrei.collaborateurs.modele.Priorite</class>
-        <class>fr.efrei.collaborateurs.modele.Statut</class>
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
 
         <properties>
