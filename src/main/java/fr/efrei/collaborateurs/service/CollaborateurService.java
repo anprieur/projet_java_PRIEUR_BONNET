@@ -4,6 +4,7 @@ import fr.efrei.collaborateurs.exception.CollaborateurDejaExistantException;
 import fr.efrei.collaborateurs.exception.CollaborateurIntrouvableException;
 import fr.efrei.collaborateurs.modele.Collaborateur;
 import fr.efrei.collaborateurs.modele.Programmeur;
+import fr.efrei.collaborateurs.modele.Testeur;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import org.slf4j.Logger;

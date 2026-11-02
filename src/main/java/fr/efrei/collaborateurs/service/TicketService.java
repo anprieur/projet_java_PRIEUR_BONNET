@@ -49,6 +49,9 @@ public class TicketService {
     public Ticket demarrerTicket(long ticketId) {
         Ticket ticket = Transactions.executer(emf, em -> {
             Ticket t = em.find(Ticket.class, ticketId);
+            if (t == null) {
+                throw new TicketIntrouvableException(ticketId);
+            }
 
             if (t.getStatut() == Statut.A_FAIRE && t.getAssigne() != null) {
 
@@ -73,6 +76,9 @@ public class TicketService {
     public Ticket aValiderTicket(long ticketId) {
         Ticket ticket = Transactions.executer(emf, em -> {
             Ticket t = em.find(Ticket.class, ticketId);
+            if (t == null) {
+                throw new TicketIntrouvableException(ticketId);
+            }
             t.aValiderTicket();
             return t;
         });
@@ -84,7 +90,13 @@ public class TicketService {
     public Ticket renvoyerTicket(long ticketId, String testeurId) {
         Ticket ticket = Transactions.executer(emf, em -> {
             Ticket t = em.find(Ticket.class, ticketId);
+            if (t == null) {
+                throw new TicketIntrouvableException(ticketId);
+            }
             Testeur testeur = em.find(Testeur.class, testeurId);
+            if (testeur == null) {
+                throw new CollaborateurIntrouvableException(testeurId);
+            }
             t.renvoyerTicket(testeur);
             return t;
         });
@@ -96,7 +108,13 @@ public class TicketService {
     public Ticket terminerTicket(long ticketId, String testeurId) {
         Ticket ticket = Transactions.executer(emf, em -> {
             Ticket t = em.find(Ticket.class, ticketId);
+            if (t == null) {
+                throw new TicketIntrouvableException(ticketId);
+            }
             Testeur testeur = em.find(Testeur.class, testeurId);
+            if (testeur == null) {
+                throw new CollaborateurIntrouvableException(testeurId);
+            }
             t.terminerTicket(testeur);
             return t;
         });
@@ -105,18 +123,20 @@ public class TicketService {
         return ticket;
     }
 
-    public void supprimerTicket(long ticketId) {
-        try (EntityManager em = emf.createEntityManager()){
-            Ticket ticket = em.find(Ticket.class, ticketId);
-            if (ticket == null) {
+    public Ticket supprimerTicket(long ticketId) {
+        Ticket ticket = Transactions.executer(emf, em ->{
+            Ticket t = em.find(Ticket.class, ticketId);
+            if (t == null) {
                 throw new TicketIntrouvableException(ticketId);
-            } else if (!ticket.verifierSupprimable()) {
+            } else if (!t.verifierSupprimable()) {
                 throw new SuppressionTicketException(ticketId);
             }
-            em.remove(ticket);
-        }
+            em.remove(t);
+            return t;
+        });
 
         logger.info("Ticket #{} a été supprimé", ticketId);
+        return ticket;
     }
 
     public Ticket assignerTicket(long ticketId, String identifiant) {

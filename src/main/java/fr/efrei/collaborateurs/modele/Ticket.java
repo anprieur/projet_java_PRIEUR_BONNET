@@ -38,8 +38,8 @@ public class Ticket {
         this.statut=Statut.A_FAIRE;
     }
 
-    public void demarrerTicket() throws Exception {
-        if (assigne == null && assigne.peutEtreResponsableDeTickets()) {
+    public void demarrerTicket() {
+        if (assigne == null || assigne.peutEtreResponsableDeTickets()) {
             throw new TransitionRefuseeException("Le ticket doit être assigné à un programmeur pour qu'il soit démarré.");
         } else if (!this.statut.equals(Statut.A_FAIRE)) {
             throw new TransitionRefuseeException("Le ticket doit être au statut 'A FAIRE' pour qu'il soit démarré.");
@@ -48,14 +48,14 @@ public class Ticket {
         }
     }
 
-    public void aValiderTicket() throws Exception {
+    public void aValiderTicket() {
         if (this.statut != Statut.EN_COURS) {
             throw new TransitionRefuseeException("Le ticket doit être 'EN_COURS' pour qu'il puisse être soumis à une validation.");
         }
         this.statut = Statut.A_VALIDER;
     }
 
-    public void renvoyerTicket(Testeur testeur) throws Exception {
+    public void renvoyerTicket(Testeur testeur) {
         if (!testeur.getMetier().equals("Testeur")) {
             throw new TransitionRefuseeException("Le ticket ne peut être renvoyé que par un testeur.");
         } else if (!this.statut.equals(Statut.A_VALIDER)) {
@@ -65,7 +65,7 @@ public class Ticket {
         }
     }
 
-    public void terminerTicket(Testeur testeur) throws Exception {
+    public void terminerTicket(Testeur testeur) {
         if (!testeur.getMetier().equals("Testeur")) {
             throw new TransitionRefuseeException("Le ticket ne peut être renvoyé que par un testeur.");
         } else if (!this.statut.equals(Statut.A_VALIDER)) {
