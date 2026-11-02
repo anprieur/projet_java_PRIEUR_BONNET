@@ -1,11 +1,10 @@
 package fr.efrei.collaborateurs.service;
 
+import fr.efrei.collaborateurs.exception.AssignationRefuseeException;
 import fr.efrei.collaborateurs.exception.CollaborateurIntrouvableException;
+import fr.efrei.collaborateurs.exception.SuppressionTicketException;
 import fr.efrei.collaborateurs.exception.TicketIntrouvableException;
-import fr.efrei.collaborateurs.modele.Collaborateur;
-import fr.efrei.collaborateurs.modele.Priorite;
-import fr.efrei.collaborateurs.modele.Statut;
-import fr.efrei.collaborateurs.modele.Ticket;
+import fr.efrei.collaborateurs.modele.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import org.slf4j.Logger;
@@ -47,6 +46,78 @@ public class TicketService {
         }
     }
 
+    public Ticket demarrerTicket(long ticketId) {
+        Ticket ticket = Transactions.executer(emf, em -> {
+            Ticket t = em.find(Ticket.class, ticketId);
+
+            if (t.getStatut() == Statut.A_FAIRE && t.getAssigne() != null) {
+
+                long nombreTicketsEnCours = ticketsDeCollaborateur(t.getAssigne().getIdentifiant())
+                        .stream()
+                        .filter(tk -> tk.getStatut() == Statut.EN_COURS)
+                        .count();
+
+                if (nombreTicketsEnCours >= 3) {
+                    throw new AssignationRefuseeException(
+                            "Le collaborateur ne peut pas avoir plus de 3 tickets en cours"
+                    );
+                }
+            } else t.demarrerTicket();
+            return t;
+        });
+
+        logger.info("Ticket #{} démarré", ticketId);
+        return ticket;
+    }
+
+    public Ticket aValiderTicket(long ticketId) {
+        Ticket ticket = Transactions.executer(emf, em -> {
+            Ticket t = em.find(Ticket.class, ticketId);
+            t.aValiderTicket();
+            return t;
+        });
+
+        logger.info("Ticket #{} soumis à la validation", ticketId);
+        return ticket;
+    }
+
+    public Ticket renvoyerTicket(long ticketId, String testeurId) {
+        Ticket ticket = Transactions.executer(emf, em -> {
+            Ticket t = em.find(Ticket.class, ticketId);
+            Testeur testeur = em.find(Testeur.class, testeurId);
+            t.renvoyerTicket(testeur);
+            return t;
+        });
+
+        logger.info("Ticket #{} renvoyer au statut 'EN COURS'", ticketId);
+        return ticket;
+    }
+
+    public Ticket terminerTicket(long ticketId, String testeurId) {
+        Ticket ticket = Transactions.executer(emf, em -> {
+            Ticket t = em.find(Ticket.class, ticketId);
+            Testeur testeur = em.find(Testeur.class, testeurId);
+            t.terminerTicket(testeur);
+            return t;
+        });
+
+        logger.info("Ticket #{} terminer", ticketId);
+        return ticket;
+    }
+
+    public void supprimerTicket(long ticketId) {
+        try (EntityManager em = emf.createEntityManager()){
+            Ticket ticket = em.find(Ticket.class, ticketId);
+            if (ticket == null) {
+                throw new TicketIntrouvableException(ticketId);
+            } else if (!ticket.verifierSupprimable()) {
+                throw new SuppressionTicketException(ticketId);
+            }
+            em.remove(ticket);
+        }
+
+        logger.info("Ticket #{} a été supprimé", ticketId);
+    }
 
     public Ticket assignerTicket(long ticketId, String identifiant) {
         Ticket ticket = Transactions.executer(emf, em -> {

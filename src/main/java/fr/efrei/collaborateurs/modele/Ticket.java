@@ -91,7 +91,12 @@ public class Ticket {
         this.assigne = collaborateur;
     }
 
-    // accesseurs et autres éléments utiles à compléter.
+    public boolean verifierSupprimable() {
+        boolean reponse;
+        if (this.statut != Statut.A_FAIRE) reponse = false;
+        else reponse = true;
+        return reponse;
+    }
 
     public String getTitre() {
         return titre;
